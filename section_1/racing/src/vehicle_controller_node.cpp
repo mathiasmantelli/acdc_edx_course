@@ -29,12 +29,31 @@
  */
 ros::Publisher *publisher_actions = nullptr;
 ros::Subscriber *subscriber_sensor_data = nullptr;
+ros::Subscriber *subscriber_sensor_full_data = nullptr;
 VehicleController *vehicle_controller = nullptr;
 
 /**
  * @brief Callback function that is automatically triggered when a new Lidar scan is available
  * @param msg A pointer to message object that contains the new Lidar scan
  */
+
+void callbackLaserSensorFull(const sensor_msgs::LaserScanPtr &msg) {
+  int lidar_size = msg->ranges.size();
+  int quarter_lidar_size = 100;
+  int count = 1;
+  ROS_INFO("");
+  ROS_INFO("***I received a new msg of size:%d | angles: %f, %f, %f", lidar_size, msg->angle_max,
+           msg->angle_min, msg->angle_increment);
+  ROS_INFO("***The size at position 0 is: %f", msg->ranges[0]);
+  while ((quarter_lidar_size * count) <= lidar_size) {
+    ROS_INFO("***The size at position %d is: %f", quarter_lidar_size * count,
+             msg->ranges[quarter_lidar_size * count]);
+    count++;
+  }
+  ROS_INFO("***The size at position %d is: %f", lidar_size - 1, msg->ranges[lidar_size - 1]);
+  ROS_INFO("");
+}
+
 void callbackLaserSensor(const sensor_msgs::LaserScanPtr &msg) {
   // START TASK 2 CODE
 
@@ -65,7 +84,7 @@ void callbackLaserSensor(const sensor_msgs::LaserScanPtr &msg) {
   new_action.angular = steering;
 
   // Publish the newly computed actuator command to the topic
-  publisher_actions->publish(new_action);
+  // publisher_actions->publish(new_action);
 }
 
 int main(int argc, char *argv[]) {
@@ -88,10 +107,13 @@ int main(int argc, char *argv[]) {
   // Initialize / allocate dynamic memory
   vehicle_controller = new VehicleController;
   subscriber_sensor_data = new ros::Subscriber;
+  subscriber_sensor_full_data = new ros::Subscriber;
   publisher_actions = new ros::Publisher;
 
   // Connect subscriber and publisher to their respective topics and callback function
   *subscriber_sensor_data = node_handle.subscribe(subscribe_topic_sensors, 10, callbackLaserSensor);
+  *subscriber_sensor_full_data =
+      node_handle.subscribe("vehicle/lidar_measurements_ref", 10, callbackLaserSensorFull);
   *publisher_actions = node_handle.advertise<geometry_msgs::Twist>(publish_topic_actuators, 10);
 
   // Enter a loop to keep the node running while looking for messages on the subscribed topic
